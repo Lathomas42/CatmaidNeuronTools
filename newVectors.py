@@ -9,6 +9,7 @@ from joblib import Parallel, delayed, dump, load
 import time
 import datetime
 import itertools
+import getpass
 
 def printTimeDetails(i,n,st):
     dt = time.time()-st
@@ -360,9 +361,16 @@ def execute():
 
 
 def parallelExecute():
-        c = catmaid.Connection('http://catmaid.hms.harvard.edu',
-                               'thomas.lo', 'asdfjkl;', 'DR5_7L')
-        ParallelDownLoadSkels(c, -1)
-        skList = np.genfromtxt('AAAskList')
-        Neurons = parallelGetNeurons(skList, -1)
-        return skList, Neurons
+    try:
+        # first trys to access os environment elements
+        c = catmaid.connect()
+    except KeyError:
+        Server = str(raw_input("Enter Catmaid Server: "))
+        Proj = str(raw_input("Enter Catmaid Project: "))
+        U_name = str(raw_input("Enter Catmaid UserName: "))
+        P_word = getpass.getpass("Enter Catmaid Password: ")
+        c = catmaid.Connection(Server, U_name, P_word, Proj)
+    ParallelDownLoadSkels(c, -1)
+    skList = np.genfromtxt('AAAskList')
+    Neurons = parallelGetNeurons(skList, -1)
+    return skList, Neurons
