@@ -54,9 +54,18 @@ def saveSkelJSON(skid,c):
     json.dump(skjs,outfile,indent = 4)
 
 def parallelSaveSkelJSON(skid):
-    c = catmaid.Connection('http://catmaid.hms.harvard.edu','thomas.lo','asdfjkl;','DR5_7L')
-    outfile = open('skelJSONS/testfolder/sk'+str(skid)+'.json','w')
-    skjs = c.fetchJSON('http://catmaid.hms.harvard.edu/9/skeleton/'+str(skid)+'/json')
+    try:
+        # first trys to access os environment elements
+        c = catmaid.connect()
+    except KeyError:
+        Server = str(raw_input("Enter Catmaid Server: "))
+        Proj = str(raw_input("Enter Catmaid Project: "))
+        U_name = str(raw_input("Enter Catmaid UserName: "))
+        P_word = getpass.getpass("Enter Catmaid Password: ")
+        c = catmaid.Connection(Server, U_name, P_word, Proj)
+    outfile = open('skelJSONS/testfolder/sk' + str(skid) + '.json', 'w')
+    skjs = c.fetchJSON('http://catmaid.hms.harvard.edu/9/skeleton/'
+                       + str(skid) + '/json')
     json.dump(skjs,outfile,indent = 4)
 
 def parallelSSJ(skid,c):
@@ -345,8 +354,15 @@ def runThroughNeurons(Neurons, closeDist):
 
 
 def execute():
-    c = catmaid.Connection('http://catmaid.hms.harvard.edu', 'thomas.lo',
-                           'asdfjkl;', 'DR5_7L')
+    try:
+        # first trys to access os environment elements
+        c = catmaid.connect()
+    except KeyError:
+        Server = str(raw_input("Enter Catmaid Server: "))
+        Proj = str(raw_input("Enter Catmaid Project: "))
+        U_name = str(raw_input("Enter Catmaid UserName: "))
+        P_word = getpass.getpass("Enter Catmaid Password: ")
+        c = catmaid.Connection(Server, U_name, P_word, Proj)
     # first get skels from catmaid
     print "extracting Skeletons from catmaid...."
     # DownLoadSkels(c)
