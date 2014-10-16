@@ -495,7 +495,7 @@ def execute():
 def parallelExecute():
        	c =catmaid.Connection('http://catmaid.hms.harvard.edu', 'thomas.lo',
 			                      'asdfjkl;', 'DR5_7L')
-	ParallelDownLoadSkels(c,-1)
+	ParallelDownLoadSkels(c, -1)
 	skList = np.genfromtxt('AAAskList')
-	Neurons = parallelGetNeurons(skList,-1)
-	return skList,Neurons
+	Neurons = parallelGetNeurons(skList, -1)
+	return skList, Neurons

@@ -1,71 +1,74 @@
-import catmaid as catmaid
+import catmaid
 import json
 import numpy as np
-import scipy.io
-from tempfile import TemporaryFile
-from StringIO import StringIO
-import sys
-from joblib import Parallel, delayed, dump, load
+import cPickle as pickle
+# import scipy.io
+# from tempfile import TemporaryFile
+# from StringIO import StringIO
+from joblib import Parallel, delayed  # ,  load  , dump
 import time
-import datetime
 import itertools
+from timeTools import printTimeDetails
 
-def printTimeDetails(i,n,st):
-    dt = time.time()-st
-    sys.stdout.write(str(round(float(i)/n*100,3))+
-		     '% complete | Elapsed: '+
-		     str(datetime.timedelta(seconds = round(dt)))+
-		     ' | ETA: '+
-		     str(datetime.timedelta(seconds = (round(dt*n/float(i))
-			                               -round(dt))))+
-		     '          \r')
-    sys.stdout.flush()
 
+# 1. Skeleton Download Functions
 def DownLoadSkels(c):
     # downloads the skeleton JSON files to a folder, a time consuming process
     # that should be done overnight
-    #wd = c.fetchJSON('http://catmaid.hms.harvard.edu/9/wiringdiagram/json')
+    # wd = c.fetchJSON('http://catmaid.hms.harvard.edu/9/wiringdiagram/json')
     skList = c.skeleton_ids()
-    np.savetxt('AAAskList',skList, delimiter = ',')
+    np.savetxt('AAAskList', skList, delimiter=',')
     n = len(skList)
     i = 0
     st = time.time()
     for skid in skList:
-	i += 1
-	printTimeDetails(i,n,st)
-	saveSkelJSON(skid,c)
-	
+        i += 1
+        printTimeDetails(i, n, st)
+        saveSkelJSON(skid, c)
     print ""
-def ParallelDownLoadSkels(c,n_jobs=-1):
-    skList = c.skeleton_ids()
-    np.savetxt('AAAskList',skList,delimiter = ',')
-    Parallel(n_jobs = n_jobs,verbose = 50)(delayed(parallelSaveSkelJSON)(skid) for skid in skList)
 
-def ParallelDLS(c,n_jobs = -1):
-    skList = c.skeleton_ids()
-    np.savetxt('AAAskList',skList,delimiter = ',')
-    #c = c.__reduce__()
-    Parallel(n_jobs = n_jobs,verbose = 50)(delayed(parallelSSJ)(skid,c) for skid in skList)
 
-def saveSkelJSON(skid,c):
-    outfile = open('skelJSONS/testfolder/sk'+str(skid)+'.json','w')
-    skjs = c.fetchJSON('http://catmaid.hms.harvard.edu/9/skeleton/'+str(skid)+'/json')
-    json.dump(skjs,outfile,indent = 4)
+def ParallelDownLoadSkels(c, n_jobs=-1):
+    skList = c.skeleton_ids()
+    np.savetxt('AAAskList', skList, delimiter=',')
+    Parallel(n_jobs=n_jobs, verbose=50)(delayed(parallelSaveSkelJSON)(skid)
+                                        for skid in skList)
+
+
+def ParallelDLS(c, n_jobs=-1):
+    skList = c.skeleton_ids()
+    np.savetxt('AAAskList', skList, delimiter=',')
+    Parallel(n_jobs=n_jobs, verbose=50)(delayed(parallelSSJ)(skid, c)
+                                        for skid in skList)
+
+
+def saveSkelJSON(skid, c):
+    outfile = open('skelJSONS/testfolder/sk' + str(skid) + '.json', 'w')
+    skjs = c.fetchJSON('http://catmaid.hms.harvard.edu/9/skeleton/'
+                       + str(skid) + '/json')
+    json.dump(skjs, outfile, indent=4)
+
 
 def parallelSaveSkelJSON(skid):
-    c = catmaid.Connection('http://catmaid.hms.harvard.edu','thomas.lo','asdfjkl;','DR5_7L')
-    outfile = open('skelJSONS/testfolder/sk'+str(skid)+'.json','w')
-    skjs = c.fetchJSON('http://catmaid.hms.harvard.edu/9/skeleton/'+str(skid)+'/json')
-    json.dump(skjs,outfile,indent = 4)
+    c = catmaid.Connection('http://catmaid.hms.harvard.edu',
+                           'thomas.lo',
+                           'asdfjkl;',
+                           'DR5_7L')
+    outfile = open('skelJSONS/testfolder/sk' + str(skid) + '.json', 'w')
+    skjs = c.fetchJSON('http://catmaid.hms.harvard.edu/9/skeleton/'
+                       + str(skid) + '/json')
+    json.dump(skjs, outfile, indent=4)
 
-def parallelSSJ(skid,c):
-    outfile = open('skelJSONS/testfolder/sk'+str(skid)+'.json','w')
-    skjs = c.fetchJSON('http://catmaid.hms.harvard.edu/9/skeleton/'+str(skid)+'/json')
-    json.dump(skjs,outfile,indent = 4)
-	        
 
-#------------------------------------------------------------------------------
-def GetNeurons(skList,c):
+def parallelSSJ(skid, c):
+    outfile = open('skelJSONS/testfolder/sk' + str(skid) + '.json', 'w')
+    skjs = c.fetchJSON('http://catmaid.hms.harvard.edu/9/skeleton/'
+                       + str(skid) + '/json')
+    json.dump(skjs, outfile, indent=4)
+
+
+# 2. Neuron downloading Tools
+def GetNeurons(skList, c):
     # downloads the neurons and saves them in a dictionary with
     # Neurons[sknumb] = neuron
     Neurons = {}
@@ -73,60 +76,69 @@ def GetNeurons(skList,c):
     i = 0
     st = time.time()
     for sk in skList:
-	i += 1
-	printTimeDetails(i,n,st)
-	neuron = getNeuron(sk,c)
+        i += 1
+        printTimeDetails(i, n, st)
+        neuron = getNeuron(sk, c)
         Neurons[sk] = neuron
-	
     print ""
-    outfile = open('neurons.json','w')
-    json.dump(Neurons,outfile,indent = 4)
+    outfile = open('neurons.json', 'w')
+    json.dump(Neurons, outfile, indent=4)
     return Neurons
 
-def getNeuron(skid,c):
+
+def getNeuron(skid, c):
     sk = int(skid)
     skel = c.skeleton(sk)
     neuron = {}
-    if skel == None :
-	    print str(skid)
-	    return neuron
+    if skel is None:
+        print str(skid)
+        return neuron
     if len(skel['vertices'].keys()) >= 10:
-	    neuron = catmaid.Neuron(skel)
+        neuron = catmaid.Neuron(skel)
     return neuron
+
 
 def parallelGetNeuron(skid):
     sk = int(skid)
-    c = catmaid.Connection('http://catmaid.hms.harvard.edu','thomas.lo','asdfjkl;','DR5_7L')
+    c = catmaid.Connection('http://catmaid.hms.harvard.edu',
+                           'thomas.lo',
+                           'asdfjkl;',
+                           'DR5_7L')
     skel = c.skeleton(sk)
     neuron = {}
-    if skel == None:
-	    print str(skid)
-	    return neuron
+    if skel is None:
+        print str(skid)
+        return neuron
     if len(skel['vertices'].keys()) >= 10:
-	    neuron = catmaid.Neuron(skel)
+        neuron = catmaid.Neuron(skel)
     return neuron
 
-def parallelGetNeurons(skList,n_jobs):
-    Neurons = {}
-    Neurons = Parallel(n_jobs = n_jobs, verbose = 50)(delayed(parallelGetNeuron)(skid) for skid in skList)
-    return Neurons
-#------------------------------------------------------------------------------
 
-def GetEdgeLengths(skeletonList,c):
+def parallelGetNeurons(skList, n_jobs):
+    Neurons = {}
+    Neurons = Parallel(n_jobs=n_jobs, verbose=50)(delayed(parallelGetNeuron)
+                                                  (skid) for skid in skList)
+    return Neurons
+
+
+# 3. Getting edge lengths of skeleton list
+def GetEdgeLengths(skeletonList, c):
     # from a list of skeletonIDs it generates a list of the edgeLengths of
     # each skel
     distances = []
     for skid in skeletonList:
-	sk = c.skeleton(skid)
-	neuron = {}
-	if len(sk['vertices'].keys()) >= 10:
-		neuron = catmaid.Neuron(sk)
-		dist = sum([neuron.distance(p,c) for (p,c) in neuron.dgraph.edges_iter()])
-	distances.append(dist)
+        sk = c.skeleton(skid)
+        neuron = {}
+        if len(sk['vertices'].keys()) >= 10:
+            neuron = catmaid.Neuron(sk)
+            dist = sum([neuron.distance(p, c) for (p, c) in
+                        neuron.dgraph.edges_iter()])
+        distances.append(dist)
     return np.array(distances)
 
-#------------------------------------------------------------------------------
-def PreLoadedGetEdgeLengths(c,neurons = {}):
+
+# 4. Getting edge lengths from preloaded skeletons (onfile)
+def PreLoadedGetEdgeLengths(c, neurons={}):
     # if all the jsons are loaded through DownloadSkels(c) then this can be run
     # faster than GetEdgeLength
     skList = np.genfromtxt('AAAskList')

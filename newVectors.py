@@ -13,6 +13,8 @@ import getpass
 
 
 def printTimeDetails(i, n, st):
+    # cute function that prints a prediction on how long it will take given
+    # the amount of time the past skeletons have taken
     dt = time.time()-st
     sys.stdout.write(str(round(float(i)/n*100, 3)) +
                      '% complete | Elapsed: ' +
@@ -41,6 +43,7 @@ def DownLoadSkels(c):
 
 
 def ParallelDownLoadSkels(c, n_jobs=-1):
+    # Downloading skeletons with the parallel function
     skList = c.skeleton_ids()
     np.savetxt('AAAskList', skList, delimiter=',')
     Parallel(n_jobs=n_jobs, verbose=50)(delayed(parallelSaveSkelJSON)(skid) for skid in skList)
@@ -49,7 +52,6 @@ def ParallelDownLoadSkels(c, n_jobs=-1):
 def ParallelDLS(c, n_jobs=-1):
     skList = c.skeleton_ids()
     np.savetxt('AAAskList', skList, delimiter=',')
-    # c = c.__reduce__()
     Parallel(n_jobs=n_jobs,verbose=50)(delayed(parallelSSJ)(skid,c) for skid in skList)
 
 
