@@ -11,47 +11,54 @@ import datetime
 import itertools
 import getpass
 
-def printTimeDetails(i,n,st):
+
+def printTimeDetails(i, n, st):
     dt = time.time()-st
-    sys.stdout.write(str(round(float(i)/n*100,3))+
-                     '% complete | Elapsed: '+
-                     str(datetime.timedelta(seconds = round(dt)))+
-                     ' | ETA: '+
-                     str(datetime.timedelta(seconds = (round(dt*n/float(i))
-                                                       -round(dt))))+
+    sys.stdout.write(str(round(float(i)/n*100, 3)) +
+                     '% complete | Elapsed: ' +
+                     str(datetime.timedelta(seconds=round(dt))) +
+                     ' | ETA: ' +
+                     str(datetime.timedelta(seconds=(round(dt*n/float(i))
+                                                     - round(dt)))) +
                      '          \r')
     sys.stdout.flush()
+
 
 def DownLoadSkels(c):
     # downloads the skeleton JSON files to a folder, a time consuming process
     # that should be done overnight
-    #wd = c.fetchJSON('http://catmaid.hms.harvard.edu/9/wiringdiagram/json')
+    # wd = c.fetchJSON('http://catmaid.hms.harvard.edu/9/wiringdiagram/json')
     skList = c.skeleton_ids()
-    np.savetxt('AAAskList',skList, delimiter = ',')
+    np.savetxt('AAAskList', skList, delimiter=',')
     n = len(skList)
     i = 0
     st = time.time()
     for skid in skList:
         i += 1
-        printTimeDetails(i,n,st)
-        saveSkelJSON(skid,c)
-        
+        printTimeDetails(i, n, st)
+        saveSkelJSON(skid, c)
     print ""
-def ParallelDownLoadSkels(c,n_jobs=-1):
-    skList = c.skeleton_ids()
-    np.savetxt('AAAskList',skList,delimiter = ',')
-    Parallel(n_jobs = n_jobs,verbose = 50)(delayed(parallelSaveSkelJSON)(skid) for skid in skList)
 
-def ParallelDLS(c,n_jobs = -1):
-    skList = c.skeleton_ids()
-    np.savetxt('AAAskList',skList,delimiter = ',')
-    #c = c.__reduce__()
-    Parallel(n_jobs = n_jobs,verbose = 50)(delayed(parallelSSJ)(skid,c) for skid in skList)
 
-def saveSkelJSON(skid,c):
-    outfile = open('skelJSONS/testfolder/sk'+str(skid)+'.json','w')
-    skjs = c.fetchJSON('http://catmaid.hms.harvard.edu/9/skeleton/'+str(skid)+'/json')
-    json.dump(skjs,outfile,indent = 4)
+def ParallelDownLoadSkels(c, n_jobs=-1):
+    skList = c.skeleton_ids()
+    np.savetxt('AAAskList', skList, delimiter=',')
+    Parallel(n_jobs=n_jobs, verbose=50)(delayed(parallelSaveSkelJSON)(skid) for skid in skList)
+
+
+def ParallelDLS(c, n_jobs=-1):
+    skList = c.skeleton_ids()
+    np.savetxt('AAAskList', skList, delimiter=',')
+    # c = c.__reduce__()
+    Parallel(n_jobs=n_jobs,verbose=50)(delayed(parallelSSJ)(skid,c) for skid in skList)
+
+
+def saveSkelJSON(skid, c):
+    outfile = open('skelJSONS/testfolder/sk' + str(skid) + '.json', 'w')
+    skjs = c.fetchJSON('http://catmaid.hms.harvard.edu/9/skeleton/' +
+                       str(skid) + '/json')
+    json.dump(skjs, outfile, indent=4)
+
 
 def parallelSaveSkelJSON(skid):
     try:
@@ -66,16 +73,18 @@ def parallelSaveSkelJSON(skid):
     outfile = open('skelJSONS/testfolder/sk' + str(skid) + '.json', 'w')
     skjs = c.fetchJSON('http://catmaid.hms.harvard.edu/9/skeleton/'
                        + str(skid) + '/json')
-    json.dump(skjs,outfile,indent = 4)
+    json.dump(skjs, outfile, indent=4)
 
-def parallelSSJ(skid,c):
-    outfile = open('skelJSONS/testfolder/sk'+str(skid)+'.json','w')
-    skjs = c.fetchJSON('http://catmaid.hms.harvard.edu/9/skeleton/'+str(skid)+'/json')
-    json.dump(skjs,outfile,indent = 4)
-                
 
-#------------------------------------------------------------------------------
-def GetNeurons(skList,c):
+def parallelSSJ(skid, c):
+    outfile = open('skelJSONS/testfolder/sk' + str(skid)
+                   + '.json', 'w')
+    skjs = c.fetchJSON('http://catmaid.hms.harvard.edu/9/skeleton/'
+                       + str(skid) + '/json')
+    json.dump(skjs, outfile, indent=4)
+
+
+def GetNeurons(skList, c):
     # downloads the neurons and saves them in a dictionary with
     # Neurons[sknumb] = neuron
     Neurons = {}
@@ -84,45 +93,55 @@ def GetNeurons(skList,c):
     st = time.time()
     for sk in skList:
         i += 1
-        printTimeDetails(i,n,st)
-        neuron = getNeuron(sk,c)
+        printTimeDetails(i, n, st)
+        neuron = getNeuron(sk, c)
         Neurons[sk] = neuron
-        
+
     print ""
-    outfile = open('neurons.json','w')
-    json.dump(Neurons,outfile,indent = 4)
+    outfile = open('neurons.json', 'w')
+    json.dump(Neurons, outfile, indent=4)
     return Neurons
 
-def getNeuron(skid,c):
+
+def getNeuron(skid, c):
     sk = int(skid)
     skel = c.skeleton(sk)
     neuron = {}
-    if skel == None :
+    if skel is None:
             print str(skid)
             return neuron
     if len(skel['vertices'].keys()) >= 10:
             neuron = catmaid.Neuron(skel)
     return neuron
+
 
 def parallelGetNeuron(skid):
     sk = int(skid)
-    c = catmaid.Connection('http://catmaid.hms.harvard.edu','thomas.lo','asdfjkl;','DR5_7L')
+    try:
+        # first trys to access os environment elements
+        c = catmaid.connect()
+    except KeyError:
+        Server = str(raw_input("Enter Catmaid Server: "))
+        Proj = str(raw_input("Enter Catmaid Project: "))
+        U_name = str(raw_input("Enter Catmaid UserName: "))
+        P_word = getpass.getpass("Enter Catmaid Password: ")
+        c = catmaid.Connection(Server, U_name, P_word, Proj)
     skel = c.skeleton(sk)
     neuron = {}
-    if skel == None:
+    if skel is None:
             print str(skid)
             return neuron
     if len(skel['vertices'].keys()) >= 10:
             neuron = catmaid.Neuron(skel)
     return neuron
 
-def parallelGetNeurons(skList,n_jobs):
+def parallelGetNeurons(skList, n_jobs):
     Neurons = {}
-    Neurons = Parallel(n_jobs = n_jobs, verbose = 50)(delayed(parallelGetNeuron)(skid) for skid in skList)
+    Neurons = Parallel(n_jobs=n_jobs, verbose=50)(delayed(parallelGetNeuron)(skid) for skid in skList)
     return Neurons
-#------------------------------------------------------------------------------
 
-def GetEdgeLengths(skeletonList,c):
+
+def GetEdgeLengths(skeletonList, c):
     # from a list of skeletonIDs it generates a list of the edgeLengths of
     # each skel
     distances = []
@@ -131,12 +150,13 @@ def GetEdgeLengths(skeletonList,c):
         neuron = {}
         if len(sk['vertices'].keys()) >= 10:
                 neuron = catmaid.Neuron(sk)
-                dist = sum([neuron.distance(p,c) for (p,c) in neuron.dgraph.edges_iter()])
+                dist = sum([neuron.distance(p, c) for (p, c)
+                            in neuron.dgraph.edges_iter()])
         distances.append(dist)
     return np.array(distances)
 
-#------------------------------------------------------------------------------
-def PreLoadedGetEdgeLengths(c,neurons = {}):
+
+def PreLoadedGetEdgeLengths(c, neurons={}):
     # if all the jsons are loaded through DownloadSkels(c) then this can be run
     # faster than GetEdgeLength
     skList = np.genfromtxt('AAAskList')
@@ -145,27 +165,29 @@ def PreLoadedGetEdgeLengths(c,neurons = {}):
     i = 0
     st = time.time()
     for skid in skList:
-        i+=1
-        printTimeDetails(i,n,st)
-        dist = getDist(skid,neurons,c)
+        i += 1
+        printTimeDetails(i, n, st)
+        dist = getDist(skid, neurons, c)
         distances.append(dist)
-        
+
     dists = np.array(distances)
-    skDists = np.column_stack((skList,dists))
-    skDists2 = [[int(s),float(d)] for [s,d] in skDists]
+    skDists = np.column_stack((skList, dists))
+    skDists2 = [[int(s), float(d)] for [s, d] in skDists]
     print ""
     return skDists2
 
-def ParallelGetDist(c,neurons = {}):
+
+def ParallelGetDist(c, neurons={}):
     skList = np.genfromtxt('AAAskList')
     distances = Parallel(n_jobs = 4)(delayed(getDist)(skid,neurons,c) for skid in skList)
     dists = np.array(distances)
-    skDists = np.column_stack((skList,dists))
-    skDists2 = [[int(s),float(d)] for [s,d] in skDists]
+    skDists = np.column_stack((skList, dists))
+    skDists2 = [[int(s), float(d)] for [s, d] in skDists]
     return skDists2
 
-def getDist(skid,neurons,c):
-    infile = open('skelJSONS/sk'+str(int(skid))+'.json','r')
+
+def getDist(skid, neurons, c):
+    infile = open('skelJSONS/sk' + str(int(skid)) + '.json', 'r')
     sk = json.load(infile)
     dist = 0.0
     if len(sk['vertices'].keys()) >= 10:
@@ -173,16 +195,17 @@ def getDist(skid,neurons,c):
             neuron = catmaid.Neuron(sk)
         else:
             neuron = neurons[skid]
-        dist = sum([neuron.distance(p,c) for (p,c) in neuron.dgraph.edges_iter()])
+        dist = sum([neuron.distance(p, c) for (p, c)
+                   in neuron.dgraph.edges_iter()])
     return dist
 
-#------------------------------------------------------------------------------
-def betweenDist(n1,v1,n2,v2):
-        return sum([
-                (n1.vertices[v1][k] - n2.vertices[v2][k]) ** 2.
-                for k in ('x','y','z')]) ** 0.5
 
-def getCloseness(n1,n2,closeDist,c):
+def betweenDist(n1, v1, n2, v2):
+        return sum([(n1.vertices[v1][k] - n2.vertices[v2][k]) ** 2.
+                   for k in ('x', 'y', 'z')]) ** 0.5
+
+
+def getCloseness(n1, n2, closeDist, c):
         # first get all nodes near
         n1ax = n1.axons
         n1den = n1.dendrites()
@@ -194,25 +217,25 @@ def getCloseness(n1,n2,closeDist,c):
         n2denClose = []
         # then go through edges and if a node near it is in add the edge dist
         for node1 in n1den.nodes():
-                for ax in n2ax.keys():
-                        for node2 in n2ax[ax]['tree'].nodes():
-                                d = betweenDist(n1,node1,n2,node2)
-                                if d <= closeDist:
-                                        n1denClose.append(node1)
-                                        n2axClose.append(node2)
+            for ax in n2ax.keys():
+                for node2 in n2ax[ax]['tree'].nodes():
+                    d = betweenDist(n1, node1, n2, node2)
+                    if d <= closeDist:
+                        n1denClose.append(node1)
+                        n2axClose.append(node2)
         for node1 in n2den.nodes():
-                for ax in n1ax.keys():
-                        for node2 in n1ax[ax]['tree'].nodes():
-                                d = betweenDist(n1,node2,n2,node1)
-                                if d <= closeDist:
-                                        n1axClose.append(node2)
-                                        n2denClose.append(node1)
+            for ax in n1ax.keys():
+                for node2 in n1ax[ax]['tree'].nodes():
+                    d = betweenDist(n1, node2, n2, node1)
+                    if d <= closeDist:
+                        n1axClose.append(node2)
+                        n2denClose.append(node1)
         n1denClose = np.unique(n1denClose)
         n2denClose = np.unique(n2denClose)
         n1axClose = np.unique(n1axClose)
         n2axClose = np.unique(n2axClose)
-        #return n1axClose, n1denClose, n2axClose, n2denClose
-        n1axDist = 0.0 
+        # return n1axClose, n1denClose, n2axClose, n2denClose
+        n1axDist = 0.0
         n1denDist = 0.0
         n2axDist = 0.0
         n2denDist = 0.0
@@ -223,18 +246,18 @@ def getCloseness(n1,n2,closeDist,c):
                         n1axDist += n1.distance(p, c)
         if(n2axClose != []):
             for ax in n2ax.keys():
-                for (p,c) in n2ax[ax]['tree'].edges():
-                    if (p in n2axClose)&(c in n2axClose):
-                        n2axDist += n2.distance(p,c)
+                for (p, c) in n2ax[ax]['tree'].edges():
+                    if (p in n2axClose) & (c in n2axClose):
+                        n2axDist += n2.distance(p, c)
         if(n1denClose != []):
             for (p, c) in n1den.edges():
                 if (p in n1denClose) & (c in n1denClose):
                     n1denDist += n1.distance(p, c)
         if(n2denClose != []):
-                for (p, c) in n2den.edges():
-                        if (p in n2denClose) & (c in n2denClose):
-                                n2denDist += n2.distance(p, c)
-        return [n1axDist,n1denDist,n2axDist,n2denDist]
+            for (p, c) in n2den.edges():
+                if (p in n2denClose) & (c in n2denClose):
+                    n2denDist += n2.distance(p, c)
+        return [n1axDist, n1denDist, n2axDist, n2denDist]
 
 
 def getDistBetween(axnode, denNodes, closeDist):
