@@ -2,3 +2,4 @@ catmaid.py
 *.json
 skelJsons
 skelJSONS
+*.pyc
