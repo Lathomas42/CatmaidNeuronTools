@@ -42,14 +42,8 @@ def DownLoadSkels(c):
     print ""
 
 
-def ParallelDownLoadSkels(c, n_jobs=-1):
-    # Downloading skeletons with the parallel function
-    skList = c.skeleton_ids()
-    np.savetxt('AAAskList', skList, delimiter=',')
-    Parallel(n_jobs=n_jobs, verbose=50)(delayed(parallelSaveSkelJSON)(skid) for skid in skList)
-
-
 def ParallelDLS(c, n_jobs=-1):
+    # Downloads Skeletons using Parallel library
     skList = c.skeleton_ids()
     np.savetxt('AAAskList', skList, delimiter=',')
     Parallel(n_jobs=n_jobs,verbose=50)(delayed(parallelSSJ)(skid,c) for skid in skList)
@@ -62,28 +56,15 @@ def saveSkelJSON(skid, c):
     json.dump(skjs, outfile, indent=4)
 
 
-def parallelSaveSkelJSON(skid):
-    try:
-        # first trys to access os environment elements
-        c = catmaid.connect()
-    except KeyError:
-        Server = str(raw_input("Enter Catmaid Server: "))
-        Proj = str(raw_input("Enter Catmaid Project: "))
-        U_name = str(raw_input("Enter Catmaid UserName: "))
-        P_word = getpass.getpass("Enter Catmaid Password: ")
-        c = catmaid.Connection(Server, U_name, P_word, Proj)
-    outfile = open('skelJSONS/testfolder/sk' + str(skid) + '.json', 'w')
-    skjs = c.fetchJSON('http://catmaid.hms.harvard.edu/9/skeleton/'
-                       + str(skid) + '/json')
-    json.dump(skjs, outfile, indent=4)
-
-
 def parallelSSJ(skid, c):
+    # Saves Skeletons as JSON file
+    # Requires a connection object to be passed with it
     outfile = open('skelJSONS/testfolder/sk' + str(skid)
                    + '.json', 'w')
     skjs = c.fetchJSON('http://catmaid.hms.harvard.edu/9/skeleton/'
                        + str(skid) + '/json')
     json.dump(skjs, outfile, indent=4)
+    outfile.close()
 
 
 def GetNeurons(skList, c):
@@ -117,17 +98,8 @@ def getNeuron(skid, c):
     return neuron
 
 
-def parallelGetNeuron(skid):
+def parallelGetNeuron(skid, c):
     sk = int(skid)
-    try:
-        # first trys to access os environment elements
-        c = catmaid.connect()
-    except KeyError:
-        Server = str(raw_input("Enter Catmaid Server: "))
-        Proj = str(raw_input("Enter Catmaid Project: "))
-        U_name = str(raw_input("Enter Catmaid UserName: "))
-        P_word = getpass.getpass("Enter Catmaid Password: ")
-        c = catmaid.Connection(Server, U_name, P_word, Proj)
     skel = c.skeleton(sk)
     neuron = {}
     if skel is None:
@@ -137,9 +109,10 @@ def parallelGetNeuron(skid):
             neuron = catmaid.Neuron(skel)
     return neuron
 
-def parallelGetNeurons(skList, n_jobs):
+
+def parallelGetNeurons(skList, c, n_jobs):
     Neurons = {}
-    Neurons = Parallel(n_jobs=n_jobs, verbose=50)(delayed(parallelGetNeuron)(skid) for skid in skList)
+    Neurons = Parallel(n_jobs=n_jobs, verbose=50)(delayed(parallelGetNeuron)(skid, c) for skid in skList)
     return Neurons
 
 
@@ -411,7 +384,16 @@ def parallelExecute():
         U_name = str(raw_input("Enter Catmaid UserName: "))
         P_word = getpass.getpass("Enter Catmaid Password: ")
         c = catmaid.Connection(Server, U_name, P_word, Proj)
-    ParallelDownLoadSkels(c, -1)
+    ParallelDLS(c, -1)
     skList = np.genfromtxt('AAAskList')
-    Neurons = parallelGetNeurons(skList, -1)
+    Neurons = parallelGetNeurons(skList, c, -1)
     return skList, Neurons
+
+def GetDendDists(ConIds):
+    # ConIds should be of the form <CONID><PRESKELID><POSTSKELID>
+    # should be a list of all connectors from ORI defined cells to a common
+    # target
+    for conRow in ConIds:
+        CID, PRESK, POSTSK = conRow
+        
+
