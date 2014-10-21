@@ -1,0 +1,4 @@
+n = length(EMidOriRGBneuronIDSFTFspeed(:,1))
+EMidOriSpdSomaXYZ
+for i = 1:n
+    

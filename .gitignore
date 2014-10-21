@@ -3,3 +3,5 @@ catmaid.py
 skelJsons
 skelJSONS
 *.pyc
+*.swp
+*.mat

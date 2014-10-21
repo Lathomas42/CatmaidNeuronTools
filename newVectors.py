@@ -389,11 +389,46 @@ def parallelExecute():
     Neurons = parallelGetNeurons(skList, c, -1)
     return skList, Neurons
 
+
 def GetDendDists(ConIds):
     # ConIds should be of the form <CONID><PRESKELID><POSTSKELID>
     # should be a list of all connectors from ORI defined cells to a common
     # target
-    for conRow in ConIds:
-        CID, PRESK, POSTSK = conRow
-        
+    # output will be of the form <postskID><pre1><pre2><dist_between_cons>
+    try:
+        # first trys to access os environment elements
+        c = catmaid.connect()
+    except KeyError:
+        Server = str(raw_input("Enter Catmaid Server: "))
+        Proj = str(raw_input("Enter Catmaid Project: "))
+        U_name = str(raw_input("Enter Catmaid UserName: "))
+        P_word = getpass.getpass("Enter Catmaid Password: ")
+        c = catmaid.Connection(Server, U_name, P_word, Proj)
+    uniqueSkels = np.unique(ConIds[:, 2]).astype(int).tolist()
+    Output = []
+    st = time.time()
 
+    for skel in uniqueSkels:
+        printTimeDetails(uniqueSkels.index(skel)+1, len(uniqueSkels), st)
+        nron = catmaid.Neuron(int(skel), c)
+        # now will parse connectors assosciated with that skeleton
+        rows = ConIds[ConIds[:, 2] == skel]
+        n = len(rows[:, 1])
+        for i in np.arange(n):
+            c1 = str(int(rows[i, 0]))
+            for j in np.arange(i+1, n):
+                difDens = 0
+                c2 = str(int(rows[j, 0]))
+                # print(int(skel))
+                for child in nron.dedges:
+                    for poss_con in nron.dedges[child].keys():
+                        if poss_con == c1:
+                            ch1 = child
+                        if poss_con == c2:
+                            ch2 = child
+                if nron.path(ch1, ch2).count(nron.root) == 1:
+                    difDens = 1
+                dist_btwn = nron.path_length(ch1, ch2)
+                Output.append([int(skel), int(rows[i, 1]),
+                               int(rows[j, 1]), dist_btwn, difDens])
+    return np.array(Output)
