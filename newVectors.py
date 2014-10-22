@@ -431,4 +431,34 @@ def GetDendDists(ConIds):
                 dist_btwn = nron.path_length(ch1, ch2)
                 Output.append([int(skel), int(rows[i, 1]),
                                int(rows[j, 1]), dist_btwn, difDens])
+    scipy.io.savemat('denDists.mat', {'denDists': Output})
     return np.array(Output)
+
+
+def getCOMS(skelList, ApicalList, EMidOriSpd):
+    # somalist should be all skeletons interested apical list shoudl be ref
+    # for which skels in skelList are apicals
+    COMList = []
+    # <intSKID><com_x><com_y><com_z><intIsApical><Ori><Spd>
+    for skel in skelList:
+        try:
+            # first trys to access os environment elements
+            c = catmaid.connect()
+        except KeyError:
+            Server = str(raw_input("Enter Catmaid Server: "))
+            Proj = str(raw_input("Enter Catmaid Project: "))
+            U_name = str(raw_input("Enter Catmaid UserName: "))
+            P_word = getpass.getpass("Enter Catmaid Password: ")
+            c = catmaid.Connection(Server, U_name, P_word, Proj)
+        nr = c.Neuron(skel)
+        COM = nr.center_of_mass()
+        Ori = np.nan
+        Spd = np.nan
+        if(skel in EMidOriSpd[:, 0]):
+            ind = EMidOriSpd[:, 0].index(skel)
+            Ori = EMidOriSpd[ind, 2]
+            Spd = EMidOriSpd[ind, 8]
+        COMList.append([int(skel), COM['x'], COM['y'], COM['z'],
+                        ApicalList.count(skel), Ori, Spd])
+    scipy.io.savemat('COMList.mat', {'COMList': COMList})
+    return COMList
