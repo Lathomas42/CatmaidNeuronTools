@@ -10,6 +10,7 @@ import time
 import datetime
 import itertools
 import getpass
+import timeTools
 
 
 def printTimeDetails(i, n, st):
@@ -435,30 +436,58 @@ def GetDendDists(ConIds):
     return np.array(Output)
 
 
-def getCOMS(skelList, ApicalList, EMidOriSpd):
+def getCOMS(skelList=None, ApicalList=None, EMidOriSpd=None):
     # somalist should be all skeletons interested apical list shoudl be ref
     # for which skels in skelList are apicals
+    # EMidOriSpd is the current EMid Ori etc file from matlab
     COMList = []
-    # <intSKID><com_x><com_y><com_z><intIsApical><Ori><Spd>
+    # <intSKID><com_x><com_y><com_z><intIsApical><size><Ori><Spd>
+    print "Loading Matlab Files"
+    if not(skelList or ApicalList or EMidOriSpd):
+        skelList, ApicalList, EMidOriSpd = getCOMSFiles()
+    elif not(skelList and ApicalList and EMidOriSpd):
+        print "ERROR: Insufficient Input"
+        return
+    print "Getting Catmaid Connection and skeleton List"
+    try:
+        # first trys to access os environment elements
+        c = catmaid.connect()
+    except KeyError:
+        Server = str(raw_input("Enter Catmaid Server: "))
+        Proj = str(raw_input("Enter Catmaid Project: "))
+        U_name = str(raw_input("Enter Catmaid UserName: "))
+        P_word = getpass.getpass("Enter Catmaid Password: ")
+        c = catmaid.Connection(Server, U_name, P_word, Proj)
+    n = len(skelList)
+    nonExistingSkels = []
+    cmSL = c.skeleton_ids()
+    print "Getting Centers of Mass for skeletons"
     for skel in skelList:
-        try:
-            # first trys to access os environment elements
-            c = catmaid.connect()
-        except KeyError:
-            Server = str(raw_input("Enter Catmaid Server: "))
-            Proj = str(raw_input("Enter Catmaid Project: "))
-            U_name = str(raw_input("Enter Catmaid UserName: "))
-            P_word = getpass.getpass("Enter Catmaid Password: ")
-            c = catmaid.Connection(Server, U_name, P_word, Proj)
-        nr = c.Neuron(skel)
-        COM = nr.center_of_mass()
-        Ori = np.nan
-        Spd = np.nan
-        if(skel in EMidOriSpd[:, 0]):
-            ind = EMidOriSpd[:, 0].index(skel)
-            Ori = EMidOriSpd[ind, 2]
-            Spd = EMidOriSpd[ind, 8]
-        COMList.append([int(skel), COM['x'], COM['y'], COM['z'],
-                        ApicalList.count(skel), Ori, Spd])
+        if int(skel[0]) in cmSL:
+            i = skelList.tolist().index(skel)
+            timeTools.loadingBar(i, n)
+            nr = catmaid.Neuron(int(skel[0]), c)
+            COM = nr.center_of_mass()
+            Ori = np.nan
+            Spd = np.nan
+            if(skel in EMidOriSpd[:, 0]):
+                ind = EMidOriSpd[:, 0].tolist().index(skel)
+                Ori = EMidOriSpd[ind, 1]
+                Spd = EMidOriSpd[ind, 8]
+            COMList.append([int(skel), COM['x'], COM['y'], COM['z'],
+                            ApicalList.tolist().count(skel), len(nr.vertices),
+                            Ori, Spd])
+        elif not(int(skel[0]) in cmSL):
+            nonExistingSkels.append(int(skel[0]))
+    print "/n Skeletons Not Found on Catmaid"
+    print nonExistingSkels
     scipy.io.savemat('COMList.mat', {'COMList': COMList})
     return COMList
+
+
+def getCOMSFiles(fnS='skels', fnA='ApSkList',
+                 fnE='EMidOriRGBneuronIDSFTFspeed'):
+    skelList = scipy.io.loadmat(fnS+'.mat')['SkelNoInhNoAxNew'].astype(int)
+    ApicalList = scipy.io.loadmat(fnA+'.mat')[fnA].astype(int)
+    EMidOriSpd = scipy.io.loadmat(fnE+'.mat')[fnE]
+    return skelList, ApicalList, EMidOriSpd
