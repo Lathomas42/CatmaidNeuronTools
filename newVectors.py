@@ -14,8 +14,8 @@ import timeTools
 
 
 def printTimeDetails(i, n, st):
-    # cute function that prints a prediction on how long it will take given
-    # the amount of time the past skeletons have taken
+    """cute function that prints a prediction on how long it will take given
+    the amount of time the past skeletons have taken"""
     dt = time.time()-st
     sys.stdout.write(str(round(float(i)/n*100, 3)) +
                      '% complete | Elapsed: ' +
@@ -28,8 +28,8 @@ def printTimeDetails(i, n, st):
 
 
 def DownLoadSkels(c):
-    # downloads the skeleton JSON files to a folder, a time consuming process
-    # that should be done overnight
+    """downloads the skeleton JSON files to a folder, a time consuming process
+    that should be done overnight, c is a catmaid Connection object"""
     # wd = c.fetchJSON('http://catmaid.hms.harvard.edu/9/wiringdiagram/json')
     skList = c.skeleton_ids()
     np.savetxt('AAAskList', skList, delimiter=',')
@@ -44,13 +44,14 @@ def DownLoadSkels(c):
 
 
 def ParallelDLS(c, n_jobs=-1):
-    # Downloads Skeletons using Parallel library
+    """Downloads Skeletons using Parallel library"""
     skList = c.skeleton_ids()
     np.savetxt('AAAskList', skList, delimiter=',')
     Parallel(n_jobs=n_jobs,verbose=50)(delayed(parallelSSJ)(skid,c) for skid in skList)
 
 
 def saveSkelJSON(skid, c):
+    """saves skid's skeleton object to a json file"""
     outfile = open('skelJSONS/testfolder/sk' + str(skid) + '.json', 'w')
     skjs = c.fetchJSON('http://catmaid.hms.harvard.edu/9/skeleton/' +
                        str(skid) + '/json')
@@ -58,8 +59,8 @@ def saveSkelJSON(skid, c):
 
 
 def parallelSSJ(skid, c):
-    # Saves Skeletons as JSON file
-    # Requires a connection object to be passed with it
+    """Saves Skeletons as JSON file
+    Requires a connection object to be passed with it"""
     outfile = open('skelJSONS/testfolder/sk' + str(skid)
                    + '.json', 'w')
     skjs = c.fetchJSON('http://catmaid.hms.harvard.edu/9/skeleton/'
@@ -69,8 +70,8 @@ def parallelSSJ(skid, c):
 
 
 def GetNeurons(skList, c):
-    # downloads the neurons and saves them in a dictionary with
-    # Neurons[sknumb] = neuron
+    """downloads the neurons and saves them in a dictionary with
+    Neurons[sknumb] = neuron"""
     Neurons = {}
     n = len(skList)
     i = 0
@@ -88,6 +89,7 @@ def GetNeurons(skList, c):
 
 
 def getNeuron(skid, c):
+    """returns the catmaid Neuron Object for the given skid"""
     sk = int(skid)
     skel = c.skeleton(sk)
     neuron = {}
@@ -100,6 +102,7 @@ def getNeuron(skid, c):
 
 
 def parallelGetNeuron(skid, c):
+    """same as getNeuron made for the parallel process"""
     sk = int(skid)
     skel = c.skeleton(sk)
     neuron = {}
@@ -112,14 +115,15 @@ def parallelGetNeuron(skid, c):
 
 
 def parallelGetNeurons(skList, c, n_jobs):
+    """returns a Nerons dictionary for the given skList"""
     Neurons = {}
     Neurons = Parallel(n_jobs=n_jobs, verbose=50)(delayed(parallelGetNeuron)(skid, c) for skid in skList)
     return Neurons
 
 
 def GetEdgeLengths(skeletonList, c):
-    # from a list of skeletonIDs it generates a list of the edgeLengths of
-    # each skel
+    """from a list of skeletonIDs it generates a list of the edgeLengths of
+    each skel"""
     distances = []
     for skid in skeletonList:
         sk = c.skeleton(skid)
@@ -133,8 +137,8 @@ def GetEdgeLengths(skeletonList, c):
 
 
 def PreLoadedGetEdgeLengths(c, neurons={}):
-    # if all the jsons are loaded through DownloadSkels(c) then this can be run
-    # faster than GetEdgeLength
+    """if all the jsons are loaded through DownloadSkels(c) then this can be run
+    faster than GetEdgeLength"""
     skList = np.genfromtxt('AAAskList')
     distances = []
     n = len(skList)
@@ -154,6 +158,8 @@ def PreLoadedGetEdgeLengths(c, neurons={}):
 
 
 def ParallelGetDist(c, neurons={}):
+    """can be passed with dictionary of neurons preloaded to improve speed;
+    not necessary"""
     skList = np.genfromtxt('AAAskList')
     distances = Parallel(n_jobs = 4)(delayed(getDist)(skid,neurons,c) for skid in skList)
     dists = np.array(distances)
@@ -163,6 +169,8 @@ def ParallelGetDist(c, neurons={}):
 
 
 def getDist(skid, neurons, c):
+    """gets total pathlenght of neuron, can be passed with preloaded
+    dictionary of neurons, not necessary"""
     infile = open('skelJSONS/sk' + str(int(skid)) + '.json', 'r')
     sk = json.load(infile)
     dist = 0.0
@@ -177,75 +185,85 @@ def getDist(skid, neurons, c):
 
 
 def betweenDist(n1, v1, n2, v2):
-        return sum([(n1.vertices[v1][k] - n2.vertices[v2][k]) ** 2.
-                   for k in ('x', 'y', 'z')]) ** 0.5
+    """returns distance between two vertices on two different neurons,
+    Euclidian"""
+    return sum([(n1.vertices[v1][k] - n2.vertices[v2][k]) ** 2.
+                for k in ('x', 'y', 'z')]) ** 0.5
 
 
 def getCloseness(n1, n2, closeDist, c):
-        # first get all nodes near
-        n1ax = n1.axons
-        n1den = n1.dendrites()
-        n2ax = n2.axons
-        n2den = n2.dendrites()
-        n1axClose = []
-        n2axClose = []
-        n1denClose = []
-        n2denClose = []
-        # then go through edges and if a node near it is in add the edge dist
-        for node1 in n1den.nodes():
-            for ax in n2ax.keys():
-                for node2 in n2ax[ax]['tree'].nodes():
-                    d = betweenDist(n1, node1, n2, node2)
-                    if d <= closeDist:
-                        n1denClose.append(node1)
-                        n2axClose.append(node2)
-        for node1 in n2den.nodes():
-            for ax in n1ax.keys():
-                for node2 in n1ax[ax]['tree'].nodes():
-                    d = betweenDist(n1, node2, n2, node1)
-                    if d <= closeDist:
-                        n1axClose.append(node2)
-                        n2denClose.append(node1)
-        n1denClose = np.unique(n1denClose)
-        n2denClose = np.unique(n2denClose)
-        n1axClose = np.unique(n1axClose)
-        n2axClose = np.unique(n2axClose)
-        # return n1axClose, n1denClose, n2axClose, n2denClose
-        n1axDist = 0.0
-        n1denDist = 0.0
-        n2axDist = 0.0
-        n2denDist = 0.0
-        if(n1axClose != []):
-            for ax in n1ax.keys():
-                for (p, c) in n1ax[ax]['tree'].edges():
-                    if (p in n1axClose) & (c in n1axClose):
-                        n1axDist += n1.distance(p, c)
-        if(n2axClose != []):
-            for ax in n2ax.keys():
-                for (p, c) in n2ax[ax]['tree'].edges():
-                    if (p in n2axClose) & (c in n2axClose):
-                        n2axDist += n2.distance(p, c)
-        if(n1denClose != []):
-            for (p, c) in n1den.edges():
-                if (p in n1denClose) & (c in n1denClose):
-                    n1denDist += n1.distance(p, c)
-        if(n2denClose != []):
-            for (p, c) in n2den.edges():
-                if (p in n2denClose) & (c in n2denClose):
-                    n2denDist += n2.distance(p, c)
-        return [n1axDist, n1denDist, n2axDist, n2denDist]
+    """gets the amount of dendritic nodes on one neuron within 'closeDist'
+    (micrometers) of the axon of the other. this is done in both directions,
+    given that both neurons have axons."""
+    # first get all nodes near
+    n1ax = n1.axons
+    n1den = n1.dendrites()
+    n2ax = n2.axons
+    n2den = n2.dendrites()
+    n1axClose = []
+    n2axClose = []
+    n1denClose = []
+    n2denClose = []
+    # then go through edges and if a node near it is in add the edge dist
+    for node1 in n1den.nodes():
+        for ax in n2ax.keys():
+            for node2 in n2ax[ax]['tree'].nodes():
+                d = betweenDist(n1, node1, n2, node2)
+                if d <= closeDist:
+                    n1denClose.append(node1)
+                    n2axClose.append(node2)
+    for node1 in n2den.nodes():
+        for ax in n1ax.keys():
+            for node2 in n1ax[ax]['tree'].nodes():
+                d = betweenDist(n1, node2, n2, node1)
+                if d <= closeDist:
+                    n1axClose.append(node2)
+                    n2denClose.append(node1)
+    n1denClose = np.unique(n1denClose)
+    n2denClose = np.unique(n2denClose)
+    n1axClose = np.unique(n1axClose)
+    n2axClose = np.unique(n2axClose)
+    # return n1axClose, n1denClose, n2axClose, n2denClose
+    n1axDist = 0.0
+    n1denDist = 0.0
+    n2axDist = 0.0
+    n2denDist = 0.0
+    if(n1axClose != []):
+        for ax in n1ax.keys():
+            for (p, c) in n1ax[ax]['tree'].edges():
+                if (p in n1axClose) & (c in n1axClose):
+                    n1axDist += n1.distance(p, c)
+    if(n2axClose != []):
+        for ax in n2ax.keys():
+            for (p, c) in n2ax[ax]['tree'].edges():
+                if (p in n2axClose) & (c in n2axClose):
+                    n2axDist += n2.distance(p, c)
+    if(n1denClose != []):
+        for (p, c) in n1den.edges():
+            if (p in n1denClose) & (c in n1denClose):
+                n1denDist += n1.distance(p, c)
+    if(n2denClose != []):
+        for (p, c) in n2den.edges():
+            if (p in n2denClose) & (c in n2denClose):
+                n2denDist += n2.distance(p, c)
+    return [n1axDist, n1denDist, n2axDist, n2denDist]
 
 
 def getDistBetween(axnode, denNodes, closeDist):
-        # takes xyzidof 1 axnode and an array of all xyzid den nodes
-        difmat = denNodes[:, :3] - axnode[:3]
-        # can do as vector
-        sqd = np.sum(difmat ** 2., 1)
-        deninds = np.where(sqd <= closeDist)[0]
-        return deninds
+    """takes xyzid of 1 axnode and an array of all xyzid den nodes.
+    Returns all denNodes that are within close dist of the given axnode"""
+    difmat = denNodes[:, :3] - axnode[:3]
+    # can do as vector
+    sqd = np.sum(difmat ** 2., 1)
+    deninds = np.where(sqd <= closeDist)[0]
+    return deninds
 
 
 def getDistNumpy(n1, n2, closeDist):
+    """does the getDist using Numpy Vectors to improve speed. Returns the
+    amount of arclength on each neuron's dendrites following the other neuron's
+    axon, and the amount of arclenght on each neuron's axon following the other
+    neuron's dendrites."""
     close = closeDist**2
     axe1 = n1.axons
     axe2 = n2.axons
@@ -304,6 +322,8 @@ def getDistNumpy(n1, n2, closeDist):
 
 
 def getNumpyArrays(n1):
+    """simplfies the neuron object to numpy arrays of all points in
+    the axon and dendrites separately"""
     dendrites = n1.dendrites().nodes()
     vert = n1.vertices
     xyzden = np.zeros([len(dendrites), 4])
@@ -329,6 +349,9 @@ def getNumpyArrays(n1):
 
 
 def runThroughNeurons(Neurons, closeDist):
+    """creates a neuronDistDict which is a dictionary with the neuron
+    pairs and their axon and dendrite closeDistances. CAUTION: is a
+    lengthy process"""
     n = len(Neurons)
     neuronDistDict = dict()
     st = time.time()
@@ -392,10 +415,10 @@ def parallelExecute():
 
 
 def GetDendDists(ConIds):
-    # ConIds should be of the form <CONID><PRESKELID><POSTSKELID>
-    # should be a list of all connectors from ORI defined cells to a common
-    # target
-    # output will be of the form <postskID><pre1><pre2><dist_between_cons>
+    """ConIds should be of the form <CONID><PRESKELID><POSTSKELID>
+    should be a list of all connectors from ORI defined cells to a common
+    target
+    output will be of the form <postskID><pre1><pre2><dist_between_cons>"""
     try:
         # first trys to access os environment elements
         c = catmaid.connect()
@@ -437,9 +460,9 @@ def GetDendDists(ConIds):
 
 
 def getCOMS(skelList=None, ApicalList=None, EMidOriSpd=None):
-    # somalist should be all skeletons interested apical list shoudl be ref
-    # for which skels in skelList are apicals
-    # EMidOriSpd is the current EMid Ori etc file from matlab
+    """ somalist should be all skeletons interested apical list shoudl be ref
+    for which skels in skelList are apicals
+    EMidOriSpd is the current EMid Ori etc file from matlab"""
     COMList = []
     # <intSKID><com_x><com_y><com_z><intIsApical><size><Ori><Spd>
     print "Loading Matlab Files"
@@ -487,6 +510,7 @@ def getCOMS(skelList=None, ApicalList=None, EMidOriSpd=None):
 
 def getCOMSFiles(fnS='skels', fnA='ApSkList',
                  fnE='EMidOriRGBneuronIDSFTFspeed'):
+    """returns the Center-of-Masses for all of the skels in fnS"""
     skelList = scipy.io.loadmat(fnS+'.mat')['SkelNoInhNoAxNew'].astype(int)
     ApicalList = scipy.io.loadmat(fnA+'.mat')[fnA].astype(int)
     EMidOriSpd = scipy.io.loadmat(fnE+'.mat')[fnE]
