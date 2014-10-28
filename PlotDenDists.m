@@ -1,6 +1,8 @@
+load('dendDists.mat')
 n = length(denDists(:,1));
 % Get denDists from python newVectors.getDenDists(cons)
-DoriDspdDendDif = [] % <Dori><Dspeed><DendDist><DiffDendrite(color)>
+DoriDspdDendDif = [] % <Dori><Dspeed><DendDist><DiffDendrite(color)><size><sk1><sk2>
+skelPairs = []
 for i = 1:n
     sk1= denDists(i,2);
     sk2 = denDists(i,3);
@@ -8,16 +10,40 @@ for i = 1:n
         ori1 = EMidOriRGBneuronIDSFTFspeed(EMidOriRGBneuronIDSFTFspeed(:,1) == sk1,2);
         ori2 = EMidOriRGBneuronIDSFTFspeed(EMidOriRGBneuronIDSFTFspeed(:,1) == sk2,2);
         dori = abs(ori1-ori2);
-%         if dori >90 
-%             dori = 180 - dori;
-%         end
-        
+        if dori >90 
+            dori = 180 - dori;
+        end
         spd1 = EMidOriRGBneuronIDSFTFspeed(EMidOriRGBneuronIDSFTFspeed(:,1)== sk1, 9);
         spd2 = EMidOriRGBneuronIDSFTFspeed(EMidOriRGBneuronIDSFTFspeed(:,1)== sk2, 9);
-        dspd = abs(spd1-spd2)
-        DoriDspdDendDif = [DoriDspdDendDif; [dori, dspd, denDists(i,4), denDists(i,5)]];
+        dspd = abs(spd1-spd2);
+        DoriDspdDendDif = [DoriDspdDendDif; [dori, dspd, denDists(i,4), denDists(i,5), sk1, sk2]];
     end
 end
+
+DoriDspdDendDif1Den = DoriDspdDendDif(DoriDspdDendDif(:,4)==0,:)
+
+uniqueSkelPairs = unique(DoriDspdDendDif1Den(:,5:6),'rows')
+%now code to make a averaged DoriDspdDendDifSize
+n2 = length(uniqueSkelPairs);
+% will have <sk1><sk2><doriAVG><dspdAVG><DenDistAVG><n_pairs>
+DoriDspdDendDifAveraged = [uniqueSkelPairs zeros(n2,4)]
+n3 = length(DoriDspdDendDif1Den(:,1))
+for j = 1:n2
+    for k = 1:n3
+        if(DoriDspdDendDif1Den(k,5:6) == uniqueSkelPairs(j,:))
+            DoriDspdDendDifAveraged(j,3) = DoriDspdDendDifAveraged(j,3)+DoriDspdDendDif1Den(k,1);
+            DoriDspdDendDifAveraged(j,4) = DoriDspdDendDifAveraged(j,4)+DoriDspdDendDif1Den(k,2);
+            DoriDspdDendDifAveraged(j,5) = DoriDspdDendDifAveraged(j,5)+DoriDspdDendDif1Den(k,3);
+            DoriDspdDendDifAveraged(j,6) = DoriDspdDendDifAveraged(j,6)+1;
+        end
+    end
+end
+% now take arithemteic averages of the sums
+DoriDspdDendDifAveraged(:,3) = DoriDspdDendDifAveraged(:,3)./DoriDspdDendDifAveraged(:,6);
+DoriDspdDendDifAveraged(:,4) = DoriDspdDendDifAveraged(:,4)./DoriDspdDendDifAveraged(:,6);
+DoriDspdDendDifAveraged(:,5) = DoriDspdDendDifAveraged(:,5)./DoriDspdDendDifAveraged(:,6);
+
+%% Fig of nonaveraged non parsed data
 figure
 subplot(2,1,1)
 hold on
@@ -27,4 +53,44 @@ title('dori vs dist between connectors')
 b=subplot(2,1,2)
 hold on
 scatter(DoriDspdDendDif(:,2),DoriDspdDendDif(:,3),20,DoriDspdDendDif(:,4))
+title('dspd vs dist between connectors')
+
+%% Fig of nonaveraged data including only cons on one Dendrite
+figure
+subplot(2,1,1)
+hold on
+
+scatter(DoriDspdDendDif1Den(:,1),DoriDspdDendDif1Den(:,3),20,DoriDspdDendDif1Den(:,4))
+title('dori vs dist between connectors')
+
+subplot(2,1,2)
+hold on
+scatter(DoriDspdDendDif1Den(:,2),DoriDspdDendDif1Den(:,3),20,DoriDspdDendDif1Den(:,4))
+title('dspd vs dist between connectors')
+
+%% Least Squares for the oneDendrite nonaveraged data
+x1 = DoriDspdDendDif1Den(:,1)
+y1 = DoriDspdDendDif1Den(:,3)
+coeffs1 = polyfit(x1, y1, 1);
+% Get fitted values
+fittedX1 = linspace(min(x1), max(x1), 200);
+fittedY1 = polyval(coeffs1, fittedX1);
+
+x2 = DoriDspdDendDif1Den(:,2)
+y2 = DoriDspdDendDif1Den(:,3)
+coeffs2 = polyfit(x2, y2, 1);
+% Get fitted values
+fittedX2 = linspace(min(x2), max(x2), 200);
+fittedY2 = polyval(coeffs2, fittedX2);
+
+%% Fig of averaged data including only cons on one Dendrite
+figure
+subplot(2,1,1)
+hold on
+scatter(DoriDspdDendDifAveraged(:,3),DoriDspdDendDifAveraged(:,5),DoriDspdDendDifAveraged(:,6)*5)
+title('dori vs dist between connectors')
+
+subplot(2,1,2)
+hold on 
+scatter(DoriDspdDendDifAveraged(:,4),DoriDspdDendDifAveraged(:,5),DoriDspdDendDifAveraged(:,6)*5)
 title('dspd vs dist between connectors')
